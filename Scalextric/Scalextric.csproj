@@ -87,7 +87,6 @@
     <Compile Include="Driver.cs" />
     <Compile Include="DsSlots.cs">
       <DependentUpon>DsSlots.xsd</DependentUpon>
-      <SubType>Component</SubType>
     </Compile>
     <Compile Include="DsSlots.Designer.cs">
       <AutoGen>True</AutoGen>
