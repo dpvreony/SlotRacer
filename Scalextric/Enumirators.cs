@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 namespace Scalextric
 {
 
+
     public enum BrakeOption
     {
         OnButton = 0,
@@ -46,4 +47,13 @@ namespace Scalextric
         BrakeButton,
         StartButton
     }
+
+    public enum CommsErrorType
+    {
+        None,
+        TimeOut,
+        ChecksumError,
+        ConnectionFailed
+    }
+
 }

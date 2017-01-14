@@ -31,10 +31,22 @@ namespace Scalextric
     public class CommsErrorEventArgs : EventArgs
     {
         public string ErrorText { get; set; }
+        public CommsErrorType ErrorType { get; set; }
+
 
         public CommsErrorEventArgs(string errorText)
         {
             ErrorText = ErrorText;
+            ErrorType = CommsErrorType.None;
+        }
+
+        public CommsErrorEventArgs(CommsErrorType errorType, string errorText)
+        {
+            ErrorText = errorText;
+            ErrorType = errorType;
         }
     }
+
+
+
 }

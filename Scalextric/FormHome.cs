@@ -160,7 +160,7 @@ namespace Scalextric
                 {
                     connection = new TrackConnection(port);
                     connection.SetCars(ref availableCars);
-                    race = new Race(connection);
+                    //race = new RaceOld(connection);
                     connection.Connect();
                     gbRace.Enabled = true;
                     connectToolStripMenuItem.Text = "Disconnect";
@@ -401,7 +401,7 @@ namespace Scalextric
         /// <param name="e"></param>
         private void btnRaceStart_Click(object sender, EventArgs e)
         {
-            if (race.Status == RaceStatus.Paused || race.Status == RaceStatus.Stopped)
+/*            if (race.TrackStatus.Status == RaceStatus.Paused || race.Status == RaceStatus.Stopped)
             {
                 List<Car> cars = new List<Car>();
                 RaceType raceType = (RaceType)cmboRaceType.SelectedIndex;
@@ -452,13 +452,13 @@ namespace Scalextric
             else
             {
                 frmRace.Close();
-            }
+            }*/
         }
 
         void frmRace_FormClosed(object sender, FormClosedEventArgs e)
         {
             frmRace.FormClosed -= frmRace_FormClosed;
-            race.StopRace();
+            //race.StopRace();
             btnRaceStart.BackColor = START_BUTTON_COLOUR;
             btnRaceStart.Text = "Start Race";
         }

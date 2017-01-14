@@ -17,9 +17,9 @@ namespace Scalextric
         private Car[] displayCars = new Car[0];
         private FormCountDown frmCountDown = new FormCountDown();
 
-        public Race race { get; private set; }
+        public RaceOld race { get; private set; }
 
-        public FormRace(Race r)
+        public FormRace(RaceOld r)
         {
             InitializeComponent();
             race = r;

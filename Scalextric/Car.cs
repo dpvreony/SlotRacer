@@ -35,7 +35,7 @@ namespace Scalextric
         public bool ControllerConnected { get; set; }
         public bool Brake { get; set; }
         public bool LaneChange { get; set; }
-        public int Power { get; set; }
+        public int Power { get; private set; }
         public long RaceTime { get; set; }
         public int LapCount { get; set; }
         public long[] LapTimes
@@ -166,6 +166,22 @@ namespace Scalextric
                 ControllerConnected = false;
                 Brake = true;
                 LaneChange = false;
+            }
+        }
+
+        /// <summary>
+        /// Set the power of the car;
+        /// </summary>
+        /// <param name="power"></param>
+        public void SetPower(int power)
+        {
+            if (power <= MaxPower)
+            {
+                Power = power;
+            }
+            else
+            {
+                Power = MaxPower;
             }
         }
 

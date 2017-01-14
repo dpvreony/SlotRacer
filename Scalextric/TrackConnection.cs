@@ -9,10 +9,12 @@ using System.Threading.Tasks;
 
 namespace Scalextric
 {
+    /// <summary>
+    /// Class that sends and received comms from Track
+    /// </summary>
     public class TrackConnection
     {
         private static readonly int TIMEOUT = 200;
-        private static readonly int LED_COUNT = 6;
         private static readonly int CAR_COUNT = 6;
         private SrComms comms;
         private string port;
@@ -47,7 +49,7 @@ namespace Scalextric
             port = portName;
             CarsPowerOverride = new int[0];
             trackCommsThread = new Thread(UpdateTrack);
-            cmd.Led = new bool[LED_COUNT];
+            cmd.ClearLeds();
             for (int i = 0; i < CAR_COUNT; i++)
             {
                 cars[i] = new Car();
@@ -80,7 +82,7 @@ namespace Scalextric
 
         public void Connect()
         {
-            comms = new SrComms(port);
+            comms = new SrComms();
             threadRunning = true;
             trackCommsThread.Start();
         }
@@ -106,32 +108,32 @@ namespace Scalextric
 
         public void LedOn(int ledNr)
         {
-            cmd.Led[ledNr] = true;
+            cmd.Leds[ledNr] = true;
         }
 
         public void LedOff(int ledNr)
         {
-            cmd.Led[ledNr] = true;
+            cmd.Leds[ledNr] = true;
         
         }
 
         public void AllLedsOn()
         {
-            for (int i = 0; i < cmd.Led.Length; i++)
+            for (int i = 0; i < cmd.Leds.Length; i++)
             {
-                cmd.Led[i] = true;
+                cmd.Leds[i] = true;
             }
         }
 
         public void AllLedsOff()
         {
-            cmd.Led = new bool[LED_COUNT];
+            cmd.ClearLeds();
         }
 
         public int StartTiming()
         {
             while (busy) { }
-            cmd.TimingStatus = RaceStatus.Started;
+            cmd.SetTimingStatus(RaceStatus.Started);
             DateTime to = DateTime.Now.AddMilliseconds(TIMEOUT);
             while (!cmd.CommandComplete)
             {
@@ -146,7 +148,7 @@ namespace Scalextric
         public int StopTiming()
         {
             while (busy) { }
-            cmd.TimingStatus = RaceStatus.Stopped;
+            cmd.SetTimingStatus(RaceStatus.Stopped);
             DateTime to = DateTime.Now.AddMilliseconds(TIMEOUT);
             while (!cmd.CommandComplete)
             {
@@ -162,7 +164,7 @@ namespace Scalextric
         {
 
             while (busy) { }
-            cmd.TimingStatus = RaceStatus.Paused;
+            cmd.SetTimingStatus(RaceStatus.Paused);
             DateTime to = DateTime.Now.AddMilliseconds(TIMEOUT);
             while (!cmd.CommandComplete)
             {
@@ -188,7 +190,7 @@ namespace Scalextric
                     {
                         if (cmd.Cars[id - 1].Power > PowerOverrideValue)
                         {
-                            cmd.Cars[id - 1].Power = PowerOverrideValue;
+                            cmd.Cars[id - 1].SetPower(PowerOverrideValue);
                         }
                     }
                 }
