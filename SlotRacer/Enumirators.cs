@@ -20,15 +20,15 @@ namespace SlotRacer
     {
         Practice = 0,
         F1 = 1,
-        Endurance = 2
+        Endurance = 2,
+        Qualifying = 3
     }
 
     public enum RaceStatus
     {
         Stopped = 0,
         Started = 1,
-        Paused = 2,
-        Complete = 3
+        Cleared = 2,
     }
 
     public enum ConsoleButton

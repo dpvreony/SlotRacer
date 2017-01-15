@@ -8,8 +8,13 @@ using System.Threading.Tasks;
 
 namespace SlotRacer
 {
+    /// <summary>
+    /// This class has a funcrion that runs in a seperate thread which sends and receives messages to the Scalextrick track.
+    /// </summary>
     public class BackGroundService
     {
+        private static readonly int MINPAUSETIME = 10;
+        private static readonly int TIMEOUT_LIMIT = 3; //! Number of timeout errors before exiting connection thread.
         private TrackStatus status;
         private SrComms comms;
         private Thread thread;
@@ -22,6 +27,10 @@ namespace SlotRacer
         public event EventHandler<CommsErrorEventArgs> OnCommsError;
         public event EventHandler OnBackGroundServiceStopped;
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="trackStatus"></param>
         public BackGroundService(ref TrackStatus trackStatus)
         {
             status = trackStatus;
@@ -58,43 +67,52 @@ namespace SlotRacer
         private void Run(object obj)
         {
             string serialPort = (string)obj;
+            DateTime nextSend = DateTime.Now;
             OutStatus outStat;
             InStatus inStat;
             int connection = 0;
+            int toCount = 0;
             
-            if (comms.Connect(serialPort) > 0)
-            {
-                RaiseEventOnUIThread(OnCommsError, new CommsErrorEventArgs(CommsErrorType.ConnectionFailed, string.Empty));
-                Started = false;
-            }
 
             while (Started)
             {
-                outStat = status.GetOutStatus();
-
-                for (int i = 0; i < 3; i++)
+                if (!comms.Connected)
                 {
-                    comms.SendCommand(outStat);
-                    connection = comms.GetReply(out inStat);
-
-                    if (connection == 0)
+                    if (comms.Connect(serialPort) > 0)
                     {
+                        RaiseEventOnUIThread(OnCommsError, new object[] { this, new CommsErrorEventArgs(CommsErrorType.ConnectionFailed, string.Empty) });
+                        Started = false;
                         break;
                     }
-                    //! If reply timed out
-                    else if (connection == 1)
+                }
+                outStat = status.GetOutStatus();
+
+                //! Wait untill a minimum amount of time has passed before sending the next command otherwise Scalextric base crashes
+                while (nextSend > DateTime.Now)  
+                {
+                    Thread.Sleep(1);
+                }
+                comms.SendCommand(outStat);
+                connection = comms.GetReply(out inStat);
+                nextSend = DateTime.Now.AddMilliseconds(MINPAUSETIME);
+                //! If reply timed out
+                if (connection == 1)
+                {
+                    toCount += 1;
+                    if (toCount > TIMEOUT_LIMIT)
                     {
                         Started = false;
-                        if (OnCommsError != null)
-                        {
-                            RaiseEventOnUIThread(OnCommsError, new CommsErrorEventArgs(CommsErrorType.TimeOut, string.Empty));
-                        }
                         break; //break out of this for loop then break out of the thread
                     }
+                    if (OnCommsError != null)
+                    {
+                        RaiseEventOnUIThread(OnCommsError, new object[] { this, new CommsErrorEventArgs(CommsErrorType.TimeOut, string.Empty) });
+                    }
                 }
-                if (connection==0)
+                else if (connection == 0)
                 {
-
+                    toCount = 0;
+                    status.Update(inStat);
                 }
             }
 
@@ -102,7 +120,7 @@ namespace SlotRacer
             Started = false;
             if (OnBackGroundServiceStopped != null)
             {
-                RaiseEventOnUIThread(OnBackGroundServiceStopped, new EventArgs());
+                RaiseEventOnUIThread(OnBackGroundServiceStopped,  new EventArgs());
             }
         }
 
@@ -118,16 +136,15 @@ namespace SlotRacer
                     ISynchronizeInvoke syncer = d.Target as ISynchronizeInvoke;
                     if (syncer == null)
                     {
-                        d.DynamicInvoke(args);
+                        d.DynamicInvoke(new[] { this, args });
                     }
                     else
                     {
                         syncer.Invoke(d, new[] { this, args });  // cleanup omitted    
                     }
-                    //_thread.Join();
                 }
             }
-            catch //(Exception ex)
+            catch (Exception)
             {
                 //Exception code
             }

@@ -10,6 +10,7 @@ namespace SlotRacer
 {
     class SrComms
     {
+        private static readonly int TIMEOUT = 200;    //! Timeout in Milliseconds
         private static readonly Int32 BAUD_RATE = 19200;
         private static readonly Parity PARITY = Parity.None;
         private static readonly Int32 DATA_BITS = 8;
@@ -34,9 +35,6 @@ namespace SlotRacer
             0xDE,0xD9,0xD0,0xD7,0xC2,0xC5,0xCC,0xCB,0xE6,0xE1,0xE8,0xEF,0xFA,0xFD,0xF4,0xF3
         };
 
-        
-        private static readonly int TIMEOUT = 100;    //! Timeout in Milliseconds
-
         private static readonly int REPLY_COUNT = 15;
         private static readonly byte START_BUTTON = 0x01;
         private static readonly byte ENTER_BUTTON = 0x08;
@@ -45,8 +43,13 @@ namespace SlotRacer
         private static readonly byte LEFT_BUTTON = 0x10;
         private static readonly byte RIGHT_BUTTON = 0x02;
 
-        SerialPort sp1;
-        string portName = string.Empty;
+        private SerialPort sp1;
+        private string portName = string.Empty;
+
+        public bool Connected
+        {
+            get { return sp1.IsOpen; }
+        }
 
         public SrComms()
         {
@@ -127,137 +130,6 @@ namespace SlotRacer
             return 0;
         }
 
-
-        /// <summary>
-        /// Redundant, use SendCommand() and GetReply()
-        /// </summary>
-        /// <param name="cmd"></param>
-        /// <returns></returns>
-        public InStatus DoCommand(ref OutStatus cmd)
-        {
-            List<byte> receiveBuffer = new List<byte>();
-            DateTime dtTimeout;
-            byte leds = 0x00;
-            byte[] buffer = new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00 };
-
-            for (int i = 0; i < cmd.Leds.Length; i++)
-            {
-                buffer[7] |= (byte)(1 << i);
-            }
-
-            for (int i = 0; i < 6; i++)
-            {
-                if (cmd.Cars.Length > i)
-                {
-                    byte carByte = 0x00;
-                    if (cmd.Cars[i].Brake)
-                    {
-                        carByte |= (0x01 << 7);
-                    }
-                    if (cmd.Cars[i].LaneChange)
-                    {
-                        carByte |= (0x01 << 6);
-                    }
-                    carByte |= (byte)(cmd.Cars[i].Power & 0x3f);
-                    carByte = (byte)(~carByte);
-                    buffer[i + 1] = carByte;
-                }
-            }
-            if (cmd.TimingStatus == RaceStatus.Started)
-            {
-                leds |= 0x02 << 6;
-            }
-            else if (cmd.TimingStatus == RaceStatus.Stopped)
-            {
-                leds |= 0x03 << 6;
-            }
-            else
-            {
-                leds |= 0x01 << 6;
-            }
-            buffer[7] = leds;
-            buffer[buffer.Length - 1] = GetChecksum(buffer);
-            try
-            {
-                if (!sp1.IsOpen)
-                {
-
-                    sp1.Open();
-                }
-                sp1.Write(buffer, 0, buffer.Length);
-
-                dtTimeout = DateTime.Now.AddMilliseconds(TIMEOUT);
-                while (sp1.BytesToRead == 0)
-                {
-                    if (DateTime.Now > dtTimeout)
-                    {
-                        sp1.Close();
-                        return new InStatus();
-                    }
-                    //Thread.Sleep(1);
-                }
-                dtTimeout = DateTime.Now.AddMilliseconds(200); //at 19200 it should only take 7ms to receive all 15 bytes
-                while (receiveBuffer.Count < REPLY_COUNT)// && DateTime.Now < dtTimeout)
-                {
-                    byte nextByte;
-                    nextByte = (byte)sp1.ReadByte();
-                    receiveBuffer.Add(nextByte);
-                }
-                byte cs = GetChecksum(receiveBuffer.ToArray());
-                if (cs == receiveBuffer[receiveBuffer.Count - 1])
-                {
-                    InStatus received = new InStatus();
-                    LapTime lt = new LapTime();
-                    cmd.CommandComplete = true;
-                    received.Controllers = new Controller[6];
-                    for (int i = 0; i < 6; i++)
-                    {
-                        byte tempByte = (byte)(~receiveBuffer[i + 1]);
-                        received.Controllers[i].BrakeButtonPressed = (tempByte & 0x01 << 7) == (0x01 << 7);
-                        received.Controllers[i].LaneChangePressed = (tempByte & 0x01 << 6) == (0x01 << 6);
-                        received.Controllers[i].ThrottlePosition = (tempByte & 0x3f);
-                        received.Controllers[i].Connected = ((receiveBuffer[0]) & (0x01 << (i + 1))) == (0x01 << (i + 1));
-                    }
-
-                    //for (int i = 0; i < 6; i++)
-                    //{
-                    //}
-                    received.AuxPortCurrent = (int)receiveBuffer[7];
-                    lt.CarId = receiveBuffer[8] & 0x07;
-
-                    lt.Time = 0;
-                    lt.Time |= (UInt32)receiveBuffer[12] << 24;
-                    lt.Time |= (UInt32)receiveBuffer[11] << 16;
-                    lt.Time |= (UInt32)receiveBuffer[10] << 8;
-                    lt.Time |= (UInt32)receiveBuffer[9];
-                    //if (lt.Time == 0xffffffff)
-                    //{
-                    //    lt.Time = 0;
-                    //}
-                    //else
-                    //{
-                    lt.Time = (long)((lt.Time * 6.4) / 1000);
-                    //}
-                    received.LastLapTime = lt;
-                    received.StartPressed = (~receiveBuffer[13] & START_BUTTON) == START_BUTTON;
-                    received.EnterPressed = (~receiveBuffer[13] & ENTER_BUTTON) == ENTER_BUTTON;
-                    received.UpPressed = (~receiveBuffer[13] & UP_BUTTON) == UP_BUTTON;
-                    received.DownPressed = (~receiveBuffer[13] & DOWN_BUTTON) == DOWN_BUTTON;
-                    received.LeftPressed = (~receiveBuffer[13] & LEFT_BUTTON) == LEFT_BUTTON;
-                    received.RightPressed = (~receiveBuffer[13] & RIGHT_BUTTON) == RIGHT_BUTTON;
-
-                    return received;
-                }
-            }
-            catch (Exception e)
-            {
-                sp1.Close();
-                throw e;
-            }
-
-            return new InStatus();
-        }
-
         /// <summary>
         /// Send message to Scalextric based on an OutStatusInstance
         /// </summary>
@@ -267,18 +139,23 @@ namespace SlotRacer
         {
             byte[] message = new byte[9];
 
-            message[0] = 0xff; //assume last receipt was good
-
+            message[0] = 0xff; //last receipt was good
+            
+            //! Set LEDs in byte 7
             for (int i = 0; i < cmd.Leds.Length; i++)
             {
-                message[7] |= (byte)(1 << i);
+                if (cmd.Leds[i])
+                {
+                    message[7] |= (byte)(1 << i);
+                }
             }
 
+            //! Set car bytes in byte 1 to 6
             for (int i = 0; i < OutStatus.CAR_COUNT; i++)
             {
                 byte carByte = 0x00;
                 carByte = (byte) ((cmd.Cars[i].Power> 63) ? 63: cmd.Cars[i].Power);
-                if (cmd.Cars[i].Brake)
+                if (cmd.Cars[i].LaneChange)
                 {
                     carByte |= (1 << 6);
                 }
@@ -286,6 +163,7 @@ namespace SlotRacer
                 {
                     carByte |= (1 << 7);
                 }
+                message[i + 1] = (byte)~carByte;
             }
 
             message[message.Length-1] = GetChecksum(message);
@@ -297,6 +175,7 @@ namespace SlotRacer
                     sp1.Open();
                 }
                 sp1.DiscardInBuffer();
+                sp1.DiscardOutBuffer();
                 sp1.Write(message, 0, message.Length);
             }
             catch
@@ -315,6 +194,7 @@ namespace SlotRacer
         public int GetReply(out InStatus stat)
         {
             byte[] message = new byte[REPLY_COUNT];
+            DateTime to = DateTime.Now.AddMilliseconds(TIMEOUT);
             stat = new InStatus();
             try
             {
@@ -322,6 +202,16 @@ namespace SlotRacer
                 {
                     sp1.Open();
                 }
+                //! Wait until whole packet is in buffer
+                while (sp1.BytesToRead < REPLY_COUNT)
+                {
+                    if (DateTime.Now > to)
+                    {
+                        sp1.ReadExisting();
+                        return 1;
+                    }
+                }
+                //! Read packet from buffer
                 sp1.Read(message, 0, message.Length);
             }
             catch (TimeoutException)
@@ -335,14 +225,17 @@ namespace SlotRacer
 
             if (message[message.Length - 1] == GetChecksum(message))
             {
+                stat = new InStatus();
+                stat.Controllers = new Controller[6];
                 for (int i = 0; i < 6; i++)
                 {
                     stat.Controllers[i].Connected = (message[0] & (1 << (i + 1))) == (1 << (i + 1));
                     if (stat.Controllers[i].Connected)
                     {
-                        stat.Controllers[i].ThrottlePosition = message[i + 1] & 0x3f;
-                        stat.Controllers[i].LaneChangePressed = (message[i + 1] & (1 << 6)) == (1 << 6);
-                        stat.Controllers[i].BrakeButtonPressed = (message[i + 1] & (1 << 7)) == (1 << 7);
+                        byte ctrlByte = (byte)~message[i + 1];
+                        stat.Controllers[i].ThrottlePosition = ctrlByte & 0x3f;
+                        stat.Controllers[i].LaneChangePressed = (ctrlByte & (1 << 6)) == (1 << 6);
+                        stat.Controllers[i].BrakeButtonPressed = (ctrlByte & (1 << 7)) == (1 << 7);
                     }
                 }
 
@@ -369,6 +262,12 @@ namespace SlotRacer
             }
         }
 
+        private bool CheckreplyPacket(byte[] packet)
+        {
+            byte cs = GetChecksum(packet);
+            return (packet[packet.Length - 1] == cs) ;
+        }
+
         /// <summary>
         /// Calculate the checksum for a message
         /// </summary>
@@ -376,20 +275,17 @@ namespace SlotRacer
         /// <returns></returns>
         private byte GetChecksum(byte[] buffer)
         {
-            int bufferLength = buffer.Length - 2;
+            int counts = buffer.Length - 1;
             byte[] from6CPB_Msg = buffer; // new byte[16];
-            byte crc8Rx = 0;
-            int i = 0;
 
-            crc8Rx = CRC8_LOOK_UP_TABLE[from6CPB_Msg[0]]; //first byte
-            for (i = 1; i <= bufferLength; i++) //loop for 14 times for incoming packet
+            byte crc8Rx = CRC8_LOOK_UP_TABLE[buffer[0]]; //first byte
+            for (int i = 1; i < counts; i++) //loop for 14 times for incoming packet
             {
-                crc8Rx = CRC8_LOOK_UP_TABLE[crc8Rx ^ from6CPB_Msg[i]];
+                crc8Rx = CRC8_LOOK_UP_TABLE[crc8Rx ^ buffer[i]];
             }
 
             return crc8Rx;
         }
     }
-
 
 }

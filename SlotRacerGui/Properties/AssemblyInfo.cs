@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("SlotRacer")]
+[assembly: AssemblyTitle("SlotRacerGui")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Stofberg IT")]
-[assembly: AssemblyProduct("SlotRacer")]
+[assembly: AssemblyProduct("SlotRacer GUI")]
 [assembly: AssemblyCopyright("")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("2180eda1-1037-4ba5-b9c8-d595b8d8629c")]
+[assembly: Guid("51345f61-134e-40e6-bd7a-c5595bc87fe2")]
 
 // Version information for an assembly consists of the following four values:
 //

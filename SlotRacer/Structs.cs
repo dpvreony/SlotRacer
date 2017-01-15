@@ -53,6 +53,8 @@ namespace SlotRacer
         private bool[] leds = new bool[LED_COUNT];
         private Car[] cars = new Car[6];
 
+        public bool Resend { get; set; }
+
         public RaceStatus TimingStatus
         {
             get { return timingStatus; }
@@ -102,12 +104,9 @@ namespace SlotRacer
             switch (timing)
             {
                 case RaceStatus.Started:
+                case RaceStatus.Stopped:
                     leds[RED_LED_INDEX] = LED_OFF;
                     leds[GREEN_LED_INDEX] = LED_ON;
-                    break;
-                case RaceStatus.Complete:
-                    leds[RED_LED_INDEX] = LED_ON;
-                    leds[GREEN_LED_INDEX] = LED_OFF;
                     break;
                 default:
                     leds[RED_LED_INDEX] = LED_ON;

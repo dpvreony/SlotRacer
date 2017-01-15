@@ -8,9 +8,23 @@ namespace SlotRacer
 {
     public class TrackStatus
     {
-        private static readonly bool LED_ON = true;
-        private static readonly bool LED_OFF = false;
+        private static readonly int CAR_COUNT = 6;
 
+        private bool[] leds = new bool[CAR_COUNT];
+
+        //Returns the current race/timing status
+        public RaceStatus RaceStatus { get; private set; }
+
+        /// <summary>
+        /// Get/Set power override for all cars.
+        /// To disable PowerOverride, set value = -1
+        /// </summary>
+        public int PowerOverride { get; set; }
+
+        /// <summary>
+        /// Elapsed race time in ms.
+        /// </summary>
+        public Int64 TrackTime { get; private set; }
 
         /// <summary>
         /// Current drawn from the auxiliary port,(in mA)
@@ -27,15 +41,21 @@ namespace SlotRacer
         /// </summary>
         public Car[] Cars { get; private set; }
 
-        public long TimeCount { get; private set; }
+        /// <summary>
+        /// Event that occurs every time a car crosses the S/F line in a race
+        /// Note, this event may not allways occur on UI thread
+        /// </summary>
+        public event EventHandler<LapChangedEventArgs> LapChanged;
 
         public TrackStatus()
         {
-            Cars = new Car[6];
+            Cars = new Car[CAR_COUNT];
             for (int i = 0; i < 6; i++)
             {
+                Cars[i] = new Car();
                 Cars[i].ID = i + 1;
             }
+            RaceStatus = RaceStatus.Stopped;
         }
 
         /// <summary>
@@ -68,13 +88,26 @@ namespace SlotRacer
                 }
                 counter += 1;
             }
-            if (receivedStatus.LastLapTime.CarId > 0)
+            if (RaceStatus == RaceStatus.Started)
             {
-                Cars[receivedStatus.LastLapTime.CarId - 1].AddLapTime(receivedStatus.LastLapTime.Time);
+                if (receivedStatus.LastLapTime.CarId > 0)
+                {
+                    Car c = Cars[receivedStatus.LastLapTime.CarId - 1];
+                    c.AddLapTime(receivedStatus.LastLapTime.Time);
+                    if (LapChanged != null)
+                    {
+                        LapChangedEventArgs ea = new LapChangedEventArgs(receivedStatus.LastLapTime, c);
+                        LapChanged.Invoke(this, ea);
+                    }
+                }
+                else
+                {
+                    TrackTime = receivedStatus.LastLapTime.Time;
+                }
             }
-            else
+            else if (RaceStatus == RaceStatus.Cleared)
             {
-                TimeCount = receivedStatus.LastLapTime.Time;
+                TrackTime = 0;
             }
         }
 
@@ -87,12 +120,83 @@ namespace SlotRacer
             OutStatus stat = new OutStatus();
             stat.Cars =  (Car[])Cars.Clone();
 
-            for (int i = 0; i < Cars.Length; i++ )
+            if (PowerOverride >= 0)
             {
-                stat.SetLed(i, LED_ON);
+                foreach(Car c in stat.Cars)
+                {
+                    c.SetPower(PowerOverride);
+                }
             }
-            stat.SetTimingStatus(RaceStatus.Started);
+
+            for (int i = 0; i < Cars.Length; i++)
+            {
+                stat.SetLed(i, leds[i]);
+            }
+            stat.SetTimingStatus(RaceStatus);
             return stat;
+        }
+
+        /// <summary>
+        /// Set an LED at a given index (0 - 5) on or off
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="on"></param>
+        public void SetLed(int index, bool on)
+        {
+            if (index < CAR_COUNT)
+            {
+                leds[index] = on;
+            }
+            else
+            {
+                throw new IndexOutOfRangeException();
+            }
+        }
+
+        /// <summary>
+        /// Returns the status of the LED at a given index
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        public bool GetLed(int index)
+        {
+            if (index < CAR_COUNT)
+            {
+                return leds[index];
+            }
+            else
+            {
+                throw new IndexOutOfRangeException();
+            }
+        }
+
+        /// <summary>
+        /// Start the race timer on the Scalextric console
+        /// </summary>
+        public void StartTiming()
+        {
+            RaceStatus = RaceStatus.Started;
+        }
+
+        /// <summary>
+        /// Stop The current race
+        /// </summary>
+        public void StopTiming()
+        {
+            RaceStatus = RaceStatus.Stopped;
+        }
+
+        /// <summary>
+        /// Reset race timer on the console
+        /// when this function is called, racetime is not actually cleared until StartTiming is called 
+        /// </summary>
+        public void ResetTiming()
+        {
+            RaceStatus = RaceStatus.Cleared;
+            for (int i=0; i< CAR_COUNT; i++)
+            {
+                Cars[i].ResetLapCount();
+            }
         }
     }
 }

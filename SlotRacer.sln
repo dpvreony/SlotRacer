@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlotRacer", "SlotRacer\SlotRacer.csproj", "{AB21C0C2-37A3-4FB7-AD4F-58229EAB5B4E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlotRacer", "SlotRacer\SlotRacer.csproj", "{2180EDA1-1037-4BA5-B9C8-D595B8D8629C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlotRacerGui", "SlotRacerGui\SlotRacerGui.csproj", "{51345F61-134E-40E6-BD7A-C5595BC87FE2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +13,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{AB21C0C2-37A3-4FB7-AD4F-58229EAB5B4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AB21C0C2-37A3-4FB7-AD4F-58229EAB5B4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AB21C0C2-37A3-4FB7-AD4F-58229EAB5B4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AB21C0C2-37A3-4FB7-AD4F-58229EAB5B4E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2180EDA1-1037-4BA5-B9C8-D595B8D8629C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2180EDA1-1037-4BA5-B9C8-D595B8D8629C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2180EDA1-1037-4BA5-B9C8-D595B8D8629C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2180EDA1-1037-4BA5-B9C8-D595B8D8629C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51345F61-134E-40E6-BD7A-C5595BC87FE2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51345F61-134E-40E6-BD7A-C5595BC87FE2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51345F61-134E-40E6-BD7A-C5595BC87FE2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51345F61-134E-40E6-BD7A-C5595BC87FE2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

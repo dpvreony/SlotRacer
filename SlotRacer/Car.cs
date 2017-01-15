@@ -8,89 +8,104 @@ using System.Threading.Tasks;
 
 namespace SlotRacer
 {
+    /// <summary>
+    /// This class represents a slot car
+    /// </summary>
     public class Car
     {
+        private static readonly int DEFAULT_MIN_LAPTIME = 1000; //By default the minimum laptime is 2000ms
         private static readonly int FULL_THROTTLE = 63;
         private static readonly float FUEL_THROTTLE_ADJUSTMENT = 0.3f; //Fuel level at which fuel stops effecting car performance
         private static readonly int NO_FUEL_SPEED = 16;
         private static readonly float REFUEL_TEMPO = 0.09f; // 100 / (80 * REFUEL_TEMPO) = [Number of seconds it takes to refuel]
         private static readonly double MAX_USAGE_PER_UPDATE = 0.03;
-        private static readonly int GC_COMMAND_COUNT_LC_INTERVAL = 100; //Number of commands beteen ghost car lane change status changes
 
-        private List<long> lapTimes = new List<long>();
+        private List<Int64> lapTimes = new List<Int64>();
         private bool lapZero = true;
-        private bool ghostLaneChange = false;
-        private int ghostLaneChangeCounter = 0;
+        private Int64 _raceTime = 0;
 
         public int ID { get; set; }
         public Color Colour { get; set; }
         public Driver Driver { get; set; }
         public BrakeOption BrakeOption { get; set; }
-        public static bool Racing { get; set; }
 
         public bool UseFuel { get; set; }
         public double FuelLevel { get; set; }
 
+        public int MinLapTime { get; set; }
         public int MaxPower { get; set; }
         public bool ControllerConnected { get; set; }
         public bool Brake { get; set; }
         public bool LaneChange { get; set; }
         public int Power { get; private set; }
-        public long RaceTime { get; set; }
-        public int LapCount { get; set; }
-        public long[] LapTimes
+        public Int64 RaceTime { get { return _raceTime; } }
+        public int LapCount { get; private set; }
+        public Int64[] LapTimes
         {
             get { return lapTimes.ToArray(); }
         }
         public bool RaceComplete { get; set; }
+        public int GhostPower { get; set; }
 
-        public TimeSpan LastLap
+        /// <summary>
+        /// Time of last completed lap in ms
+        /// </summary>
+        public Int64 LastLap
         {
             get
             {
                 if (LapTimes.Length > 0)
                 {
-                    return new DateTime(0).AddMilliseconds(LapTimes[LapTimes.Length - 1]).TimeOfDay;
+                    return LapTimes[LapTimes.Length - 1];
                 }
                 else
                 {
-                    return new TimeSpan(0);
+                    return 0;
                 }
             }
         }
 
-        public TimeSpan FastestLap
+        public Int64 FastestLap
         {
             get
             {
                 if (LapTimes.Length > 0)
                 {
-                    return new DateTime(0).AddMilliseconds(LapTimes.Min()).TimeOfDay;
+                    return LapTimes.Min();
                 }
                 else
                 {
-                    return new TimeSpan(0);
+                    return 0;
                 }
             }
         }
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
         public Car()
         {
             ID = 0;
             MaxPower = 63;
             BrakeOption = BrakeOption.OnButtonAndThrottle;
-            RaceTime = 0;
+            _raceTime = 0;
+            MinLapTime = DEFAULT_MIN_LAPTIME;
         }
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="dataRow"></param>
         public Car(DsSlots.DtRaceCarRow dataRow)
         {
             ID = dataRow.ControlerNr;
             MaxPower = dataRow.MaxPower;
             BrakeOption = (BrakeOption)dataRow.BrakeOption;
-            RaceTime = 0;
+            _raceTime = 0;
             Colour = Color.FromName(dataRow.Colour);
             FuelLevel = 100;
             UseFuel = false;
+            MinLapTime = DEFAULT_MIN_LAPTIME;
         }
 
         public  void GetData(ref DsSlots.DtRaceCarRow row)
@@ -132,39 +147,15 @@ namespace SlotRacer
                         throttle = (int)Math.Min(throttle - (FuelLevel / 100 * throttle) + (throttle * FUEL_THROTTLE_ADJUSTMENT), 100);
                     }
                 }
-                Power = (throttle > MaxPower) ? MaxPower : throttle;
+                SetPower(throttle);
                 Brake = ((controller.BrakeButtonPressed && (BrakeOption == BrakeOption.OnButton || BrakeOption == BrakeOption.OnButtonAndThrottle))
                     || (Power == 0 && (BrakeOption == BrakeOption.OnButtonAndThrottle || BrakeOption == BrakeOption.OnThrottleRelease)));
                 LaneChange = controller.LaneChangePressed;
             }
-            else if (Racing) //If the controler is not connected, this becomes a ghost car.
-            {
-                ghostLaneChangeCounter += 1;
-                if (ghostLaneChangeCounter > GC_COMMAND_COUNT_LC_INTERVAL)
-                {
-                    ghostLaneChangeCounter = 0;
-                    ghostLaneChange = !ghostLaneChange;
-                }
-                Brake = false;
-                Power = Properties.Settings.Default.GhostCarSpeed;
-                switch (Properties.Settings.Default.GhostCarLaneChange)
-                {
-                    case 0:
-                        LaneChange = false;
-                        break;
-                    case 1:
-                        LaneChange = true;
-                        break;
-                    case 2:
-                        LaneChange = ghostLaneChange;
-                        break;
-                }
-            }
             else
             {
-                Power = 0;
-                ControllerConnected = false;
-                Brake = true;
+                SetPower(GhostPower);
+                Brake = (Power == 0);
                 LaneChange = false;
             }
         }
@@ -185,13 +176,29 @@ namespace SlotRacer
             }
         }
 
-        public void AddLapTime(long time)
+        /// <summary>
+        /// Set the current race time
+        /// </summary>
+        /// <param name="time"></param>
+        public void SetRaceTime(Int16 time)
+        {
+            _raceTime = time;
+        }
+
+        /// <summary>
+        /// Add a given lap time to the list of laptimes.
+        /// </summary>
+        /// <param name="time"></param>
+        public void AddLapTime(Int64 time)
         {
             if (!lapZero)
             {
-                long laptime = time - RaceTime;
-                if (laptime < 0) laptime = laptime * (-1);
-                
+                Int64 laptime = time - _raceTime;
+                //! If lapTime is less than the minimum lap time, ignore the lap count
+                if (laptime < MinLapTime)
+                {
+                    return;
+                }
                 lapTimes.Add(laptime);
                 LapCount += 1;
             }
@@ -199,15 +206,18 @@ namespace SlotRacer
             {
                 lapZero = false;
             }
-            RaceTime = time;
+            _raceTime = time;
         }
 
+        /// <summary>
+        /// Clear all lap times and places car back in grid situation
+        /// </summary>
         public void ResetLapCount()
         {
             lapZero = true;
             LapCount = 0;
             lapTimes.Clear();
-            RaceTime = 0;
+            _raceTime = 0;
             RaceComplete = false;
         }
 
